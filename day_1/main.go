@@ -44,15 +44,22 @@ func main() {
 func getLineDigits(line string) []int {
 	var digits []int
 
-	for _, char := range strings.Split(line, "") {
-		digit, err := strconv.Atoi(char)
+	for idx := range strings.Split(line, "") {
 
-		// Skip if character is not a digit
-		if err != nil {
+		// check if numeric digit exists at index
+		digit, found := checkNumericDigit(line, idx)
+		if found {
+			digits = append(digits, digit)
 			continue
 		}
 
-		digits = append(digits, digit)
+		// else check if word digit exists at index
+		digit, found = checkWordDigit(line, idx)
+		if found {
+			digits = append(digits, digit)
+			continue
+		}
+
 	}
 
 	return digits
@@ -71,4 +78,48 @@ func calcCalibrationValue(lineDigits []int) int {
 	calibrationValue := firstDigit*10 + lastDigit
 
 	return calibrationValue
+}
+
+func checkNumericDigit(str string, idx int) (digit int, found bool) {
+	indexOutOfRange := int(idx) > (len(str) - 1)
+	if indexOutOfRange {
+		return 0, false
+	}
+
+	digit, err := strconv.Atoi(string(str[idx]))
+	if err != nil {
+		return 0, false
+	}
+
+	return digit, true
+}
+
+func checkWordDigit(str string, idx int) (digit int, found bool) {
+	wordDigits := map[string]int{
+		"one":   1,
+		"two":   2,
+		"three": 3,
+		"four":  4,
+		"five":  5,
+		"six":   6,
+		"seven": 7,
+		"eight": 8,
+		"nine":  9,
+	}
+
+	indexOutOfRange := idx > (len(str) - 1)
+	if indexOutOfRange {
+		return 0, false
+	}
+
+	stringOffset := str[idx:]
+
+	for key, value := range wordDigits {
+		// Check if word begins with a word digit
+		if strings.HasPrefix(stringOffset, key) {
+			return value, true
+		}
+	}
+
+	return 0, false
 }
