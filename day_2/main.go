@@ -61,6 +61,32 @@ func SetFromString(str string) *Set {
 	return &set
 }
 
+func (g *Game) MinimumSet() *Set {
+	red := 0
+	blue := 0
+	green := 0
+
+	for _, set := range g.sets {
+		if set.red > red {
+			red = set.red
+		}
+
+		if set.green > green {
+			green = set.green
+		}
+
+		if set.blue > blue {
+			blue = set.blue
+		}
+	}
+
+	return &Set{red, blue, green}
+}
+
+func (s *Set) Power() int {
+	return s.blue * s.green * s.red
+}
+
 func main() {
 
 	if len(os.Args) < 2 {
@@ -116,11 +142,17 @@ func main() {
 	}
 
 	sumOfIds := 0
+	sumOfPowers := 0
+
 	for _, game := range games {
 		if game.isValid(12, 14, 13) {
 			sumOfIds += game.id
 		}
+
+		minimumSet := game.MinimumSet()
+		sumOfPowers += minimumSet.Power()
 	}
 
 	fmt.Printf("Sum of ids of valid games: %v\n", sumOfIds)
+	fmt.Printf("Sum of powers of minimum set of each game: %v\n", sumOfPowers)
 }
