@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"math"
 	"slices"
 	"strings"
 
@@ -36,8 +37,8 @@ func (c *CategoryMap) ToDestination(src int) int {
 
 		// calc dest value
 		if withinRange {
-			offset := src - mapInfo.src
-			return mapInfo.dest + offset
+			offset := mapInfo.dest - mapInfo.src
+			return src + offset
 		}
 
 	}
@@ -46,8 +47,61 @@ func (c *CategoryMap) ToDestination(src int) int {
 	return src
 }
 
+func (c *CategoryMap) RangeToDestination(rangeStart, rangeEnd int) [][]int {
+	sourceRanges := [][]int{{rangeStart, rangeEnd}}
+	var destRanges [][]int
+
+outer:
+	for i := 0; i < len(sourceRanges); i++ {
+		rge := sourceRanges[i]
+		start, end := rge[0], rge[1]
+
+		for _, mapInfo := range c.Content {
+			destRange, unmapped := mapInfo.ApplyRange(start, end)
+
+			if len(destRange) != 0 {
+				if len(unmapped) != 0 {
+					sourceRanges = append(sourceRanges, unmapped...)
+				}
+
+				destRanges = append(destRanges, destRange)
+				continue outer
+			}
+		}
+
+		// any source range that isn't mapped corresponds to the same dest range
+		destRanges = append(destRanges, []int{start, end})
+	}
+
+	return destRanges
+}
+
 func (c *CategoryMap) AddMapInfo(mapInfo *MapInfo) {
 	c.Content = append(c.Content, *mapInfo)
+}
+
+func (mi *MapInfo) ApplyRange(srcStart, srcEnd int) (destRange []int, unmapped [][]int) {
+	rangeStart, rangeEnd := mi.src, mi.src+mi.length
+	// no overlap
+	if srcEnd <= rangeStart || rangeEnd <= srcStart {
+		return nil, [][]int{{srcStart, srcEnd}}
+	}
+
+	overlapStart := int(math.Max(float64(srcStart), float64(rangeStart)))
+	overlapEnd := int(math.Min(float64(srcEnd), float64(rangeEnd)))
+
+	offset := mi.dest - mi.src
+	destRange = []int{overlapStart + offset, overlapEnd + offset}
+
+	if overlapStart > srcStart {
+		unmapped = append(unmapped, []int{srcStart, overlapStart})
+	}
+
+	if overlapEnd < srcEnd {
+		unmapped = append(unmapped, []int{overlapEnd, srcEnd})
+	}
+
+	return destRange, unmapped
 }
 
 type Almanac map[string]*CategoryMap
@@ -76,6 +130,31 @@ func (a Almanac) GetDestination(src int, srcCategory string, destCategory string
 	}
 
 	return srcValue
+}
+
+func (a Almanac) GetDestinationRanges(inputRanges [][]int, srcCategory string, destCategory string) [][]int {
+	targetCategory, currentCategory := destCategory, srcCategory
+	srcRanges := inputRanges
+
+	for currentCategory != targetCategory {
+
+		categoryMap, ok := a[currentCategory]
+		if !ok {
+			log.Fatalf("Category not found: %v\n", currentCategory)
+		}
+
+		// Parse to destination ranges
+		var destRanges [][]int
+		for _, srcRange := range srcRanges {
+			d := categoryMap.RangeToDestination(srcRange[0], srcRange[1])
+			destRanges = append(destRanges, d...)
+		}
+
+		srcRanges = destRanges
+		currentCategory = categoryMap.Destination
+	}
+
+	return srcRanges
 }
 
 func Initialize() ([]int, *Almanac) {
@@ -137,4 +216,25 @@ func puzzleOne(seeds []int, almanac *Almanac) {
 func main() {
 	seeds, almanac := Initialize()
 	puzzleOne(seeds, almanac)
+	puzzleTwo(seeds, almanac)
+}
+
+func puzzleTwo(seeds []int, almanac *Almanac) {
+	var seedRanges [][]int
+
+	for i := 0; i < len(seeds); i += 2 {
+		start := seeds[i]
+		end := seeds[i] + seeds[i+1]
+		seedRanges = append(seedRanges, []int{start, end})
+	}
+
+	locationRanges := almanac.GetDestinationRanges(seedRanges, "seed", "location")
+	minLocation := 1000000000000
+	for _, loc := range locationRanges {
+		if loc[0] < minLocation {
+			minLocation = loc[0]
+		}
+	}
+
+	fmt.Printf("Puzzle two solution: %v\n", minLocation)
 }

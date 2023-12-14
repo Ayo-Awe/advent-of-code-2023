@@ -3,6 +3,7 @@ package util
 import (
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -35,4 +36,19 @@ func IsDigit(str string) bool {
 
 	_, err := strconv.Atoi(str)
 	return err == nil
+}
+
+func ToIntArray(strArray []string) []int {
+	var intArray []int
+
+	for _, s := range strArray {
+		value, err := strconv.Atoi(s)
+		if err != nil {
+			log.Fatalf("Unable to parse to int: %v", s)
+		}
+
+		intArray = append(intArray, int(value))
+	}
+
+	return intArray
 }
