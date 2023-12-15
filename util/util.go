@@ -52,3 +52,13 @@ func ToIntArray(strArray []string) []int {
 
 	return intArray
 }
+
+func MustToInt(str string) int {
+	value, err := strconv.Atoi(str)
+
+	if err != nil {
+		log.Panicf("Unable to parse to int: %v", str)
+	}
+
+	return value
+}
