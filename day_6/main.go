@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"regexp"
+	"strings"
 
 	"github.com/ayo-awe/advent-of-code-2023/util"
 )
@@ -46,8 +47,8 @@ func main() {
 	times := re.FindAllString(lines[0], -1)
 	distances := re.FindAllString(lines[1], -1)
 
+	// Prep puzzle one input
 	var races []Race
-
 	for i := 0; i < len(times); i++ {
 		time := util.MustToInt(times[i])
 		distance := util.MustToInt(distances[i])
@@ -55,6 +56,13 @@ func main() {
 	}
 
 	puzzleOne(races)
+
+	// Prep puzzle two input
+	time := strings.Join(times, "")
+	distance := strings.Join(distances, "")
+	race := &Race{util.MustToInt(time), util.MustToInt(distance)}
+
+	puzzleTwo(race)
 }
 
 func puzzleOne(races []Race) {
@@ -66,4 +74,10 @@ func puzzleOne(races []Race) {
 	}
 
 	fmt.Println("Puzzle one solution:", marginOfError)
+}
+
+func puzzleTwo(r *Race) {
+	nWins := r.WaysToWin()
+
+	fmt.Println("Puzzle two solution:", nWins)
 }
