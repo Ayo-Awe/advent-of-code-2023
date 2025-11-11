@@ -161,7 +161,7 @@ func PartTwo(hands []Hand) int {
 
 // Comp functions
 func Part2HandCmpFunc(a, b Hand) int {
-	cards := "AKQT98765432"
+	cards := "AKQT98765432J"
 
 	cardRanks := map[rune]int{}
 	for i, card := range cards {
