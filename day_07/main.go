@@ -1,13 +1,13 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"slices"
-	"sort"
 	"strings"
 
-	"github.com/ayo-awe/advent-of-code-2023/util"
+	aoc "github.com/ayo-awe/advent-of-code-2023/util"
 )
 
 type HandType int
@@ -21,21 +21,68 @@ const (
 	FullHouse                        // index = 5
 	FourOfAKind                      // index = 6
 	FiveOfAKind                      // index = 7
+
+	Wildcard = 'J'
 )
 
 type Hand struct {
-	cards    string
-	bid      int
-	handType HandType
+	cards      string
+	bid        int
+	handType   HandType
+	cardCounts map[rune]int
 }
 
-func NewHand(cards string, bid int) *Hand {
-	handType := GetHandType(cards)
-	return &Hand{cards, bid, handType}
+func (h Hand) String() string {
+	return fmt.Sprintf("Hand(%q %d %d)", h.cards, h.bid, h.handType)
 }
 
-func GetHandType(cards string) HandType {
-	cardDistribution := make(map[string]int)
+func (hand Hand) PromotedType() HandType {
+	// Doesn't have a wildcard, can't be promoted
+	if hand.cardCounts[Wildcard] == 0 {
+		return hand.handType
+	}
+
+	switch hand.handType {
+	case FiveOfAKind, FourOfAKind, FullHouse:
+		return FiveOfAKind
+	case ThreeOfAKind:
+		return FourOfAKind
+	case TwoPair:
+		if hand.cardCounts[Wildcard] == 1 {
+			return FullHouse
+		}
+		return FourOfAKind
+	case OnePair:
+		if hand.cardCounts[Wildcard] == 1 {
+			return TwoPair
+		}
+		return ThreeOfAKind
+	case HighCard:
+		return OnePair
+	default:
+		panic("unknown hand type")
+	}
+}
+
+func NewHand(cards string, bid int) Hand {
+	cardCounts := GetCardCounts(cards)
+	handType := GetHandType(cardCounts)
+	return Hand{cards, bid, handType, cardCounts}
+}
+
+func GetCardCounts(cards string) map[rune]int {
+	cardCounts := make(map[rune]int)
+	for _, card := range cards {
+		cardCounts[card] += 1
+	}
+	return cardCounts
+}
+
+func GetHandType(cardCounts map[rune]int) HandType {
+	var dist []int
+	for _, value := range cardCounts {
+		dist = append(dist, value)
+	}
 
 	handTypeDistribution := map[HandType][]int{
 		FiveOfAKind:  {5},
@@ -47,100 +94,49 @@ func GetHandType(cards string) HandType {
 		HighCard:     {1, 1, 1, 1, 1},
 	}
 
-	for _, card := range cards {
-		cardDistribution[string(card)] += 1
-	}
-
-	var dist []int
-	for _, value := range cardDistribution {
-		dist = append(dist, value)
-	}
-
 	slices.Sort(dist)
-	var handType HandType
-	for key, value := range handTypeDistribution {
-		if slices.Compare(dist, value) == 0 {
-			handType = key
-			break
+	for handType, value := range handTypeDistribution {
+		if slices.Equal(dist, value) {
+			return handType
 		}
 	}
 
-	return handType
-}
-
-type Hands []*Hand
-
-func (h Hands) Len() int {
-	return len(h)
-}
-
-func (h Hands) Less(i, j int) bool {
-	cardRanks := map[string]int{
-		"A": 13,
-		"K": 12,
-		"Q": 11,
-		"J": 10,
-		"T": 9,
-		"9": 8,
-		"8": 7,
-		"7": 6,
-		"6": 5,
-		"5": 4,
-		"4": 3,
-		"3": 2,
-		"2": 1,
-	}
-
-	if h[i].handType < h[j].handType {
-		return true
-	} else if h[i].handType == h[j].handType {
-
-		// assume cards i and j have equal length
-		for idx := 0; idx < len(h[i].cards); idx++ {
-
-			cardI, cardJ := string(h[i].cards[idx]), string(h[j].cards[idx])
-
-			// Compare cards
-			if cardRanks[cardI] != cardRanks[cardJ] {
-				return cardRanks[cardI] < cardRanks[cardJ]
-			}
-
-		}
-	}
-
-	return false
-}
-
-func (h Hands) Swap(i, j int) {
-	h[i], h[j] = h[j], h[i]
+	panic("invalid hand")
 }
 
 func main() {
-	hands := Initialize()
-	puzzleOne(hands)
-}
+	filename := flag.String("file", "input.txt", "input file name")
+	flag.Parse()
 
-func Initialize() Hands {
-	lines, err := util.GetInput()
+	lines, err := aoc.ReadInputLineByLine(*filename)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	var hands Hands
-
-	for _, line := range lines {
-		d := strings.Split(line, " ")
-		cards := d[0]
-		bid := util.MustToInt(d[1])
-		hand := NewHand(cards, bid)
-		hands = append(hands, hand)
+	hands, err := ParseInput(lines)
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	return hands
+	fmt.Println("Part one: ", PartOne(hands))
+	fmt.Println("Part two: ", PartTwo(hands))
 }
 
-func puzzleOne(hands Hands) {
-	sort.Sort(hands)
+func ParseInput(lines []string) ([]Hand, error) {
+	hands := make([]Hand, len(lines))
+	for i, line := range lines {
+		d := strings.Split(line, " ")
+		cards := d[0]
+		bid := aoc.MustToInt(d[1])
+		hand := NewHand(cards, bid)
+		hands[i] = hand
+	}
+
+	return hands, nil
+}
+
+func PartOne(hands []Hand) int {
+	slices.SortFunc(hands, Part1HandCmpFunc)
 
 	totalWinnings := 0
 	for idx, hand := range hands {
@@ -148,5 +144,67 @@ func puzzleOne(hands Hands) {
 		totalWinnings += rank * hand.bid
 	}
 
-	fmt.Printf("Puzzle one solution: %v\n", totalWinnings)
+	return totalWinnings
+}
+
+func PartTwo(hands []Hand) int {
+	slices.SortFunc(hands, Part2HandCmpFunc)
+
+	totalWinnings := 0
+	for idx, hand := range hands {
+		rank := idx + 1
+		totalWinnings += rank * hand.bid
+	}
+
+	return totalWinnings
+}
+
+// Comp functions
+func Part2HandCmpFunc(a, b Hand) int {
+	cards := "AKQT98765432"
+
+	cardRanks := map[rune]int{}
+	for i, card := range cards {
+		cardRanks[card] = len(cards) - i
+	}
+
+	if a.PromotedType() != b.PromotedType() {
+		return int(a.PromotedType() - b.PromotedType())
+	}
+
+	// assume cards i and j have equal length
+	for i := 0; i < len(a.cards); i++ {
+		cardA, cardB := rune(a.cards[i]), rune(b.cards[i])
+
+		// Compare cards
+		if cardRanks[cardA] != cardRanks[cardB] {
+			return cardRanks[cardA] - cardRanks[cardB]
+		}
+	}
+
+	return 0
+}
+
+func Part1HandCmpFunc(a, b Hand) int {
+	cards := "AKQJT98765432"
+	cardRanks := map[rune]int{}
+	for i, card := range cards {
+		cardRanks[card] = len(cards) - i
+	}
+
+	if a.handType != b.handType {
+		return int(a.handType - b.handType)
+	}
+
+	// assume cards i and j have equal length
+	for i := 0; i < len(a.cards); i++ {
+		cardA, cardB := rune(a.cards[i]), rune(b.cards[i])
+
+		// Compare cards
+		if cardRanks[cardA] != cardRanks[cardB] {
+			return cardRanks[cardA] - cardRanks[cardB]
+		}
+	}
+
+	return 0
 }
