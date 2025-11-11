@@ -38,7 +38,6 @@ func main() {
 	}
 
 	fmt.Printf("Sum of calibration values = %v\n", sum)
-
 }
 
 func getLineDigits(line string) []int {
@@ -66,7 +65,6 @@ func getLineDigits(line string) []int {
 }
 
 func calcCalibrationValue(lineDigits []int) int {
-
 	if len(lineDigits) == 0 {
 		return 0
 	}

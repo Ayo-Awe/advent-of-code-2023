@@ -1,6 +1,7 @@
 package util
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"log"
@@ -8,6 +9,36 @@ import (
 	"strconv"
 	"strings"
 )
+
+func ReadInputLineByLine(filename string) ([]string, error) {
+	var lines []string
+
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		if scanner.Err() != nil {
+			return nil, err
+		}
+
+		lines = append(lines, scanner.Text())
+	}
+
+	return lines, nil
+}
+
+func ReadInput(filename string) (string, error) {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return "", err
+	}
+
+	return string(data), nil
+}
 
 func GetInput() ([]string, error) {
 	if len(os.Args) < 2 {
@@ -29,15 +60,6 @@ func GetInput() ([]string, error) {
 	return lines, nil
 }
 
-func IsDigit(str string) bool {
-	if len(str) > 1 {
-		return false
-	}
-
-	_, err := strconv.Atoi(str)
-	return err == nil
-}
-
 func ToIntArray(strArray []string) []int {
 	var intArray []int
 
@@ -55,7 +77,6 @@ func ToIntArray(strArray []string) []int {
 
 func MustToInt(str string) int {
 	value, err := strconv.Atoi(str)
-
 	if err != nil {
 		log.Panicf("Unable to parse to int: %v", str)
 	}
