@@ -43,19 +43,19 @@ func main() {
 	}
 
 	fmt.Println("solution to part one: ", PartOne(histories))
-	fmt.Println("solution to part two: ", PartTwo())
+	fmt.Println("solution to part two: ", PartTwo(histories))
 }
 
 func PartOne(histories [][]int) int {
 	var sum int
 	for i := range histories {
-		sum += extrapolate(histories[i])
+		sum += extrapolateFwd(histories[i])
 	}
 
 	return sum
 }
 
-func extrapolate(sequences []int) int {
+func extrapolateFwd(sequences []int) int {
 	// if everything is zero return 0
 	if slices.Max(sequences) == 0 && slices.Min(sequences) == 0 {
 		return 0
@@ -67,9 +67,28 @@ func extrapolate(sequences []int) int {
 		nextSeqs[i] = sequences[i+1] - sequences[i]
 	}
 
-	return extrapolate(nextSeqs) + sequences[len(sequences)-1]
+	return extrapolateFwd(nextSeqs) + sequences[len(sequences)-1]
 }
 
-func PartTwo() int {
-	return 0
+func extrapolateBwd(sequences []int) int {
+	// if everything is zero return 0
+	if slices.Max(sequences) == 0 && slices.Min(sequences) == 0 {
+		return 0
+	}
+
+	// compute next sequence level and call extrapolate on that
+	nextSeqs := make([]int, len(sequences)-1)
+	for i := range nextSeqs {
+		nextSeqs[i] = sequences[i+1] - sequences[i]
+	}
+
+	return sequences[0] - extrapolateBwd(nextSeqs)
+}
+
+func PartTwo(histories [][]int) int {
+	var sum int
+	for i := range histories {
+		sum += extrapolateBwd(histories[i])
+	}
+	return sum
 }
