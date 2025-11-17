@@ -9,13 +9,18 @@
 # Optionally, include the year for completing previous year's challenges:
 #       source setup.sh <day#> <year>
 #  e.g. source setup.sh 3 2022
-  
+
 day=$1
 main_file_template=$(echo -n "package main
 
-import \"fmt\"
+import (
+    \"flag\"
+    \"fmt\"
+)
 
 func main() {
+	filename := flag.String(\"file\", \"input.txt\", \"input file name\")
+	flag.Parse()
 
     fmt.Println(\"solution to part one: \", PartOne())
     fmt.Println(\"solution to part two: \", PartTwo())

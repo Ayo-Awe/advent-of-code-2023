@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"log"
 	"regexp"
+	"strings"
 
 	"github.com/ayo-awe/advent-of-code-2023/aoc"
 )
 
 var (
-	networkPattern = regexp.MustCompile(`[a-zA-Z]{3}`)
+	networkPattern = regexp.MustCompile(`[0-9a-zA-Z]{3}`)
 	dirIndexes     = map[rune]int{
 		'L': 0,
 		'R': 1,
@@ -51,13 +52,17 @@ func main() {
 	}
 
 	fmt.Println("solution to part one: ", PartOne(directions, network))
-	fmt.Println("solution to part two: ", PartTwo())
+	fmt.Println("solution to part two: ", PartTwo(directions, network))
 }
 
 func PartOne(directions string, network map[string][2]string) int {
 	steps := 0
 	start := "AAA"
 	end := "ZZZ"
+
+	if _, ok := network[start]; !ok {
+		return 0
+	}
 
 	node := start
 	for ; node != end; steps++ {
@@ -71,6 +76,46 @@ func PartOne(directions string, network map[string][2]string) int {
 	return steps
 }
 
-func PartTwo() int {
-	return 0
+func PartTwo(directions string, network map[string][2]string) int {
+
+	var nodes []string
+	for k := range network {
+		if strings.HasSuffix(k, "A") {
+			nodes = append(nodes, k)
+		}
+	}
+
+	nodeSteps := make([]int, len(nodes))
+	for i, node := range nodes {
+		steps := 0
+		for current := node; !strings.HasSuffix(current, "Z"); steps++ {
+			dir := rune(directions[steps%len(directions)])
+			idx := dirIndexes[dir]
+			current = network[current][idx]
+		}
+		nodeSteps[i] = steps
+	}
+
+	// solution is the lcm of the steps of all nodes
+	lcmVal := 1
+	for _, steps := range nodeSteps {
+		lcmVal = lcm(lcmVal, steps)
+	}
+
+	return lcmVal
+}
+
+func lcm(a, b int) int {
+	return (a * b) / gcd(a, b)
+}
+
+// largest number that divides both a & b
+func gcd(a, b int) int {
+	for i := min(a, b); i > 0; i-- {
+		if a%i == 0 && b%i == 0 {
+			return i
+		}
+	}
+
+	return 1
 }
