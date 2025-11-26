@@ -4,13 +4,12 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"math"
 
 	"github.com/ayo-awe/advent-of-code-2023/aoc"
 )
 
 var (
-	cards = map[rune][2]int{
+	cardinals = map[rune][2]int{
 		'^': {0, -1},
 		'v': {0, 1},
 		'>': {1, 0},
@@ -24,6 +23,10 @@ var (
 )
 
 func advance(dir, cell rune) rune {
+	if cell == 'S' {
+		return dir
+	}
+
 	combo := string(dir) + string(cell)
 	switch combo {
 	case ">J":
@@ -79,68 +82,138 @@ func main() {
 	grid, start := ParseInput(lines)
 
 	fmt.Println("solution to part one: ", PartOne(grid, start))
-	fmt.Println("solution to part two: ", PartTwo())
+	fmt.Println("solution to part two: ", PartTwo(grid, start))
 }
 
 type node struct {
-	pos   [2]int
-	dir   rune
-	steps int
+	pos [2]int
+	dir rune
+}
+
+func (n node) String() string {
+	return fmt.Sprintf("x: %d, y: %d, dir: %c", n.pos[X], n.pos[Y], n.dir)
 }
 
 func PartOne(grid [][]rune, start [2]int) int {
-	var queue []node
+	loop := findLoop(grid, start)
+	loopSize := len(loop)
+	// further point is half the loop length rounded up
+	return (loopSize / 2) + (loopSize % 2)
+}
 
-	for dir := range cards {
-		queue = append(queue, node{
-			pos:   start,
-			dir:   dir,
-			steps: 0,
-		})
+// 1: find all non-pipe cells
+// 2: check if they're inside/outside the loop(polygon) using the raycast algo
+func PartTwo(grid [][]rune, start [2]int) int {
+	loop := findLoop(grid, start)
+	var tilesInLoop int
+
+	for y := range grid {
+		for x := range grid[y] {
+			pos := [2]int{x, y}
+			if loop[pos] {
+				continue
+			}
+
+			inTile := raycast(grid, loop, pos)
+			if inTile {
+				tilesInLoop++
+			}
+		}
 	}
 
-	seen := map[[2]int]int{}
-	max := math.MinInt
+	return tilesInLoop
+}
 
-	for len(queue) > 0 {
-		curr := queue[0]
-		queue = queue[1:]
+// given a point in the grid, returns true if
+// the point is within the loop using the raycast algo
+func raycast(grid [][]rune, loop map[[2]int]bool, pos [2]int) bool {
+	corners := map[rune]bool{
+		'J': true,
+		'F': true,
+		'L': true,
+		'7': true,
+		'S': true,
+	}
 
-		if prevSteps := seen[curr.pos]; prevSteps > 0 && prevSteps < curr.steps {
+	x, y := pos[X], pos[Y]
+
+	// shoot ray to the right and count how many times
+	// we cross the polygon/loop
+	var crosses int
+	var prevCorner rune
+	for nx := x + 1; nx < len(grid[0]); nx++ {
+		// skip this, point isn't part of the loop/polygon
+		if !loop[[2]int{nx, y}] {
 			continue
 		}
 
-		seen[curr.pos] = curr.steps
-		if curr.steps > max {
-			max = curr.steps
+		cell := grid[y][nx]
+		if cell == '|' {
+			crosses++
+			continue
 		}
 
-		d := cards[curr.dir]
-		nx, ny := curr.pos[X]+d[X], curr.pos[Y]+d[Y]
+		if !corners[cell] {
+			continue
+		}
+
+		// no previous corner
+		if prevCorner == 0 {
+			prevCorner = cell
+			continue
+		}
+
+		cornerPair := string(prevCorner) + string(cell)
+		// we only count a cross if the corners are facing opposite directions
+		if cornerPair == "FJ" || cornerPair == "L7" {
+			crosses++
+		}
+
+		// reset previous corner
+		prevCorner = 0
+	}
+
+	// num of crosses are odd for points in the loop/polygon and
+	// even when the point is outside the loop
+	return crosses%2 == 1
+}
+
+func findLoop(grid [][]rune, start [2]int) map[[2]int]bool {
+	var curr node
+	for dir, pos := range cardinals {
+		nx, ny := pos[X]+start[X], pos[Y]+start[Y]
 
 		// bounds check
 		if nx < 0 || nx >= len(grid[0]) || ny < 0 || ny >= len(grid) {
 			continue
 		}
 
-		newDir := advance(curr.dir, grid[ny][nx])
-
-		// not possible to advance
-		if newDir == InvalidDir {
-			continue
+		if ndir := advance(dir, grid[ny][nx]); ndir != InvalidDir {
+			curr = node{pos: start, dir: ndir}
+			break
 		}
-
-		// add new node to the queue
-		queue = append(queue, node{
-			pos:   [2]int{nx, ny},
-			dir:   newDir,
-			steps: curr.steps + 1,
-		})
 	}
 
-	return max
-}
+	seen := map[[2]int]bool{}
+	for !seen[curr.pos] {
+		d := cardinals[curr.dir]
+		nx, ny := curr.pos[X]+d[X], curr.pos[Y]+d[Y]
 
-func PartTwo() int {
-	return 0
+		// bounds check
+		if nx < 0 || nx >= len(grid[0]) || ny < 0 || ny >= len(grid) {
+			// shouldn't happen with valid input
+			panic("invalid loop")
+		}
+
+		newDir := advance(curr.dir, grid[ny][nx])
+		if newDir == InvalidDir {
+			// shouldn't happen with valid input
+			panic("invalid loop")
+		}
+
+		seen[curr.pos] = true
+		curr = node{pos: [2]int{nx, ny}, dir: newDir}
+	}
+
+	return seen
 }
